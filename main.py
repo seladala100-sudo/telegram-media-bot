@@ -182,9 +182,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
 
+    error_text = str(e)
+
+    # TikTok restrictions
+    if (
+        "TikTok" in error_text
+        or "cookies" in error_text
+        or "login" in error_text
+    ):
+
         await status_msg.edit_text(
-            f"❌ Ошибка:\n{str(e)}"
+            "⚠️ TikTok ограничил доступ к этому видео.\n"
+            "Попробуй другую ссылку."
         )
+
+    # File too large
+    elif "File is too big" in error_text:
+
+        await status_msg.edit_text(
+            "⚠️ Файл слишком большой."
+        )
+
+    # Universal error
+    else:
+
+        await status_msg.edit_text(
+            "❌ Не удалось скачать медиа."
+        )
+
+        print(error_text)
 
 # ==========================================
 # ЗАПУСК БОТА
