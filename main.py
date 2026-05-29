@@ -37,7 +37,7 @@ def is_valid_url(text):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = (
-        "🔥 <b>Load</b>\n\n"
+        "⚡ <b>LOAD</b>\n\n"
         "Отправь ссылку с любой популярной платформы,\n"
         "и я загружу медиафайл для тебя.\n\n"
         "📥 Поддерживаются:\n"
@@ -48,7 +48,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• Reddit\n"
         "• Facebook\n"
         "• И другие платформы\n\n"
-        "⚡ Просто отправь ссылку сообщением."
+        "🚀 Просто отправь ссылку сообщением."
     )
 
     await update.message.reply_text(
@@ -69,7 +69,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "4. Получи готовый файл\n\n"
         "📌 Пример:\n"
         "<code>https://youtu.be/xxxxx</code>\n\n"
-        "⚠️ Большие файлы Telegram может не пропустить."
+        "⚠️ Некоторые TikTok видео могут быть ограничены."
     )
 
     await update.message.reply_text(
@@ -93,7 +93,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         return
 
-    # Сообщение статуса
+    # Статус
     status_msg = await update.message.reply_text(
         "📥 Анализирую ссылку..."
     )
@@ -101,20 +101,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
 
         ydl_opts = {
-    "outtmpl": f"{DOWNLOAD_DIR}/%(title)s.%(ext)s",
-    "format": "best[height<=720]",
-    "noplaylist": True,
-    "restrictfilenames": True,
-    "quiet": True,
-    "cookiefile": "cookies.txt",
-}
+            "outtmpl": f"{DOWNLOAD_DIR}/%(title)s.%(ext)s",
+            "format": "best[height<=720]",
+            "noplaylist": True,
+            "restrictfilenames": True,
+            "quiet": True,
+            "cookiefile": "cookies.txt",
+        }
 
         # ==========================================
-        # СКАЧИВАНИЕ ВИДЕО
+        # СКАЧИВАНИЕ
         # ==========================================
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
 
-            # Получаем информацию
+            # Получаем инфу
             info = ydl.extract_info(url, download=False)
 
             title = info.get("title", "video")
@@ -146,7 +146,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # ==========================================
         file_size = os.path.getsize(file_path)
 
-        # Лимит Telegram ~49MB
+        # Telegram limit
         if file_size > 49 * 1024 * 1024:
 
             os.remove(file_path)
@@ -168,7 +168,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await update.message.reply_video(
                 video=video,
-                caption=f"🔥 <b>{title}</b>",
+                caption=f"⚡ <b>{title}</b>",
                 parse_mode="HTML",
                 supports_streaming=True,
             )
@@ -182,35 +182,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
 
-    error_text = str(e)
+        error_text = str(e)
 
-    # TikTok restrictions
-    if (
-        "TikTok" in error_text
-        or "cookies" in error_text
-        or "login" in error_text
-    ):
+        # TikTok restrictions
+        if (
+            "TikTok" in error_text
+            or "cookies" in error_text
+            or "login" in error_text
+        ):
 
-        await status_msg.edit_text(
-            "⚠️ TikTok ограничил доступ к этому видео.\n"
-            "Попробуй другую ссылку."
-        )
+            await status_msg.edit_text(
+                "⚠️ TikTok ограничил доступ к этому видео.\n"
+                "Попробуй другую ссылку."
+            )
 
-    # File too large
-    elif "File is too big" in error_text:
+        # File too large
+        elif "File is too big" in error_text:
 
-        await status_msg.edit_text(
-            "⚠️ Файл слишком большой."
-        )
+            await status_msg.edit_text(
+                "⚠️ Файл слишком большой."
+            )
 
-    # Universal error
-    else:
+        # Universal error
+        else:
 
-        await status_msg.edit_text(
-            "❌ Не удалось скачать медиа."
-        )
+            await status_msg.edit_text(
+                "❌ Не удалось скачать медиа."
+            )
 
-        print(error_text)
+            print(error_text)
 
 # ==========================================
 # ЗАПУСК БОТА
@@ -236,9 +236,9 @@ def main():
         )
     )
 
-    print("🔥 Load запущен...")
+    print("⚡ LOAD запущен...")
 
-    # Удаляем webhook
+    # Удаление webhook
     app.bot.delete_webhook(
         drop_pending_updates=True
     )
