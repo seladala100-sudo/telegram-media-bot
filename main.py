@@ -13,7 +13,7 @@ from telegram.ext import (
 # ==========================================
 # PASTE YOUR TELEGRAM BOT TOKEN HERE
 # ==========================================
-TOKEN = "8756695599:AAH6999dHGWvVoWPAQiI6Y_nMqVQX-nvQZg" 
+TOKEN = os.getenv("BOT_TOKEN")
 
 DOWNLOAD_DIR = "downloads"
 if not os.path.exists(DOWNLOAD_DIR):
