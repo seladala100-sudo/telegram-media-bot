@@ -152,16 +152,25 @@ async def download_ytdlp(url, update, status_msg):
 
         ydl_opts = {
 
+            # Путь
             "outtmpl": f"{DOWNLOAD_DIR}/%(title)s.%(ext)s",
 
-            "format": "best[height<=720]",
+            # YouTube FIX
+            "format": "mp4[height<=720]/best[height<=720]",
 
+            # Склейка аудио+видео
+            "merge_output_format": "mp4",
+
+            # Без плейлистов
             "noplaylist": True,
 
+            # Без кривых символов
             "restrictfilenames": True,
 
+            # Тихий режим
             "quiet": True,
 
+            # User-Agent
             "http_headers": {
                 "User-Agent": (
                     "Mozilla/5.0 "
@@ -175,6 +184,7 @@ async def download_ytdlp(url, update, status_msg):
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
 
+            # Информация
             info = ydl.extract_info(url, download=False)
 
             title = info.get("title", "video")
@@ -184,10 +194,21 @@ async def download_ytdlp(url, update, status_msg):
                 parse_mode="HTML"
             )
 
+            # Скачивание
             ydl.download([url])
 
+            # Путь
             file_path = ydl.prepare_filename(info)
 
+            # Если после merge расширение изменилось
+            if not os.path.exists(file_path):
+
+                possible_mp4 = os.path.splitext(file_path)[0] + ".mp4"
+
+                if os.path.exists(possible_mp4):
+                    file_path = possible_mp4
+
+        # Проверка
         if not os.path.exists(file_path):
 
             await status_msg.edit_text(
@@ -196,6 +217,7 @@ async def download_ytdlp(url, update, status_msg):
 
             return
 
+        # Размер
         file_size = os.path.getsize(file_path)
 
         # Telegram limit
@@ -209,6 +231,7 @@ async def download_ytdlp(url, update, status_msg):
 
             return
 
+        # Отправка
         await status_msg.edit_text(
             "📤 Отправляю файл..."
         )
@@ -222,6 +245,7 @@ async def download_ytdlp(url, update, status_msg):
                 supports_streaming=True,
             )
 
+        # Удаление
         os.remove(file_path)
 
         await status_msg.delete()
@@ -242,6 +266,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     url = update.message.text.strip()
 
+    # Проверка
     if not is_valid_url(url):
 
         await update.message.reply_text(
@@ -263,7 +288,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             status_msg
         )
 
-    # Other platforms
+    # Остальные платформы
     else:
 
         await download_ytdlp(
@@ -280,6 +305,7 @@ def main():
 
     app = ApplicationBuilder().token(TOKEN).build()
 
+    # Команды
     app.add_handler(
         CommandHandler("start", start)
     )
@@ -288,6 +314,7 @@ def main():
         CommandHandler("help", help_command)
     )
 
+    # Сообщения
     app.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
@@ -300,7 +327,7 @@ def main():
     app.run_polling()
 
 # ==========================================
-# СТАРТ
+# START
 # ==========================================
 
 if __name__ == "__main__":
