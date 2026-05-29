@@ -1,5 +1,6 @@
 import os
 import re
+import requests
 import yt_dlp
 
 from telegram import Update
@@ -12,13 +13,11 @@ from telegram.ext import (
 )
 
 # ==========================================
-# ТОКЕН БОТА
+# LOAD BOT
 # ==========================================
+
 TOKEN = os.getenv("BOT_TOKEN")
 
-# ==========================================
-# ПАПКА ДЛЯ ЗАГРУЗОК
-# ==========================================
 DOWNLOAD_DIR = "downloads"
 
 if not os.path.exists(DOWNLOAD_DIR):
@@ -27,28 +26,36 @@ if not os.path.exists(DOWNLOAD_DIR):
 # ==========================================
 # ПРОВЕРКА ССЫЛКИ
 # ==========================================
+
 def is_valid_url(text):
     url_regex = r"https?://\S+"
     return re.match(url_regex, text)
 
 # ==========================================
+# ПРОВЕРКА TIKTOK
+# ==========================================
+
+def is_tiktok(url):
+    return "tiktok.com" in url or "vt.tiktok.com" in url
+
+# ==========================================
 # /start
 # ==========================================
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = (
         "⚡ <b>LOAD</b>\n\n"
-        "Отправь ссылку с любой популярной платформы,\n"
-        "и я загружу медиафайл для тебя.\n\n"
+        "Отправь ссылку с любой платформы,\n"
+        "и я загружу медиафайл.\n\n"
         "📥 Поддерживаются:\n"
         "• YouTube\n"
         "• TikTok\n"
         "• Instagram\n"
         "• Twitter / X\n"
         "• Reddit\n"
-        "• Facebook\n"
-        "• И другие платформы\n\n"
-        "🚀 Просто отправь ссылку сообщением."
+        "• Facebook\n\n"
+        "🚀 Просто отправь ссылку."
     )
 
     await update.message.reply_text(
@@ -59,17 +66,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==========================================
 # /help
 # ==========================================
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = (
         "🛠 <b>Как пользоваться</b>\n\n"
-        "1. Скопируй ссылку на видео\n"
+        "1. Скопируй ссылку\n"
         "2. Отправь её боту\n"
-        "3. Подожди несколько секунд\n"
-        "4. Получи готовый файл\n\n"
-        "📌 Пример:\n"
-        "<code>https://youtu.be/xxxxx</code>\n\n"
-        "⚠️ Некоторые TikTok видео могут быть ограничены."
+        "3. Подожди загрузку\n"
+        "4. Получи файл\n\n"
+        "⚡ LOAD работает максимально быстро."
     )
 
     await update.message.reply_text(
@@ -78,43 +84,97 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # ==========================================
-# ОБРАБОТКА ССЫЛОК
+# TIKTOK DOWNLOAD
 # ==========================================
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    url = update.message.text.strip()
+async def download_tiktok(url, update, status_msg):
 
-    # Проверка ссылки
-    if not is_valid_url(url):
+    try:
 
-        await update.message.reply_text(
-            "❌ Отправь корректную ссылку."
+        await status_msg.edit_text(
+            "📥 Загружаю TikTok..."
         )
 
-        return
+        api_url = f"https://www.tikwm.com/api/?url={url}"
 
-    # Статус
-    status_msg = await update.message.reply_text(
-        "📥 Анализирую ссылку..."
-    )
+        response = requests.get(api_url).json()
+
+        if not response.get("data"):
+
+            await status_msg.edit_text(
+                "❌ Не удалось скачать TikTok."
+            )
+
+            return
+
+        video_url = response["data"]["play"]
+        title = response["data"].get("title", "TikTok Video")
+
+        file_path = f"{DOWNLOAD_DIR}/tiktok.mp4"
+
+        video_data = requests.get(video_url)
+
+        with open(file_path, "wb") as f:
+            f.write(video_data.content)
+
+        await status_msg.edit_text(
+            "📤 Отправляю TikTok..."
+        )
+
+        with open(file_path, "rb") as video:
+
+            await update.message.reply_video(
+                video=video,
+                caption=f"⚡ <b>{title}</b>",
+                parse_mode="HTML",
+                supports_streaming=True,
+            )
+
+        os.remove(file_path)
+
+        await status_msg.delete()
+
+    except Exception as e:
+
+        print(e)
+
+        await status_msg.edit_text(
+            "❌ Ошибка TikTok."
+        )
+
+# ==========================================
+# YOUTUBE + OTHER
+# ==========================================
+
+async def download_ytdlp(url, update, status_msg):
 
     try:
 
         ydl_opts = {
+
             "outtmpl": f"{DOWNLOAD_DIR}/%(title)s.%(ext)s",
+
             "format": "best[height<=720]",
+
             "noplaylist": True,
+
             "restrictfilenames": True,
+
             "quiet": True,
-            "cookiefile": "cookies.txt",
+
+            "http_headers": {
+                "User-Agent": (
+                    "Mozilla/5.0 "
+                    "(Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) "
+                    "Chrome/124.0 Safari/537.36"
+                )
+            },
         }
 
-        # ==========================================
-        # СКАЧИВАНИЕ
-        # ==========================================
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
 
-            # Получаем инфу
             info = ydl.extract_info(url, download=False)
 
             title = info.get("title", "video")
@@ -124,15 +184,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="HTML"
             )
 
-            # Скачиваем
             ydl.download([url])
 
-            # Путь к файлу
             file_path = ydl.prepare_filename(info)
 
-        # ==========================================
-        # ПРОВЕРКА ФАЙЛА
-        # ==========================================
         if not os.path.exists(file_path):
 
             await status_msg.edit_text(
@@ -141,9 +196,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             return
 
-        # ==========================================
-        # ПРОВЕРКА РАЗМЕРА
-        # ==========================================
         file_size = os.path.getsize(file_path)
 
         # Telegram limit
@@ -152,14 +204,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.remove(file_path)
 
             await status_msg.edit_text(
-                "⚠️ Файл слишком большой для Telegram."
+                "⚠️ Файл слишком большой."
             )
 
             return
 
-        # ==========================================
-        # ОТПРАВКА
-        # ==========================================
         await status_msg.edit_text(
             "📤 Отправляю файл..."
         )
@@ -173,53 +222,64 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 supports_streaming=True,
             )
 
-        # ==========================================
-        # УДАЛЕНИЕ ФАЙЛА
-        # ==========================================
         os.remove(file_path)
 
         await status_msg.delete()
 
     except Exception as e:
 
-        error_text = str(e)
+        print(e)
 
-        # TikTok restrictions
-        if (
-            "TikTok" in error_text
-            or "cookies" in error_text
-            or "login" in error_text
-        ):
-
-            await status_msg.edit_text(
-                "⚠️ TikTok ограничил доступ к этому видео.\n"
-                "Попробуй другую ссылку."
-            )
-
-        # File too large
-        elif "File is too big" in error_text:
-
-            await status_msg.edit_text(
-                "⚠️ Файл слишком большой."
-            )
-
-        # Universal error
-        else:
-
-            await status_msg.edit_text(
-                "❌ Не удалось скачать медиа."
-            )
-
-            print(error_text)
+        await status_msg.edit_text(
+            "❌ Не удалось скачать медиа."
+        )
 
 # ==========================================
-# ЗАПУСК БОТА
+# ОБРАБОТКА ССЫЛОК
 # ==========================================
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    url = update.message.text.strip()
+
+    if not is_valid_url(url):
+
+        await update.message.reply_text(
+            "❌ Отправь корректную ссылку."
+        )
+
+        return
+
+    status_msg = await update.message.reply_text(
+        "📥 Анализирую ссылку..."
+    )
+
+    # TikTok
+    if is_tiktok(url):
+
+        await download_tiktok(
+            url,
+            update,
+            status_msg
+        )
+
+    # Other platforms
+    else:
+
+        await download_ytdlp(
+            url,
+            update,
+            status_msg
+        )
+
+# ==========================================
+# ЗАПУСК
+# ==========================================
+
 def main():
 
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # Команды
     app.add_handler(
         CommandHandler("start", start)
     )
@@ -228,7 +288,6 @@ def main():
         CommandHandler("help", help_command)
     )
 
-    # Сообщения
     app.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
@@ -238,16 +297,11 @@ def main():
 
     print("⚡ LOAD запущен...")
 
-    # Удаление webhook
-    app.bot.delete_webhook(
-        drop_pending_updates=True
-    )
-
-    # Запуск
     app.run_polling()
 
 # ==========================================
 # СТАРТ
 # ==========================================
+
 if __name__ == "__main__":
     main()
