@@ -261,6 +261,86 @@ async def download_ytdlp(url, update, status_msg):
 # ==========================================
 # ОБРАБОТКА ССЫЛОК
 # ==========================================
+async def mp3_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if not context.args:
+
+        await update.message.reply_text(
+            "❌ Использование:\n\n/mp3 ссылка"
+        )
+
+        return
+
+    url = context.args[0]
+
+    status_msg = await update.message.reply_text(
+        "🎵 Подготавливаю MP3..."
+    )
+
+    try:
+
+        ydl_opts = {
+
+            "format": "bestaudio/best",
+
+            "outtmpl": f"{DOWNLOAD_DIR}/%(title)s.%(ext)s",
+
+            "restrictfilenames": True,
+
+            "quiet": True,
+
+            "noplaylist": True,
+
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "192",
+                }
+            ],
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+
+            info = ydl.extract_info(url, download=True)
+
+            title = info.get("title", "audio")
+
+            filename = ydl.prepare_filename(info)
+
+        mp3_file = os.path.splitext(filename)[0] + ".mp3"
+
+        if not os.path.exists(mp3_file):
+
+            await status_msg.edit_text(
+                "❌ Не удалось создать MP3."
+            )
+
+            return
+
+        await status_msg.edit_text(
+            "📤 Отправляю MP3..."
+        )
+
+        with open(mp3_file, "rb") as audio:
+
+            await update.message.reply_audio(
+                audio=audio,
+                title=title,
+                caption=f"🎵 {title}",
+            )
+
+        os.remove(mp3_file)
+
+        await status_msg.delete()
+
+    except Exception as e:
+
+        print(e)
+
+        await status_msg.edit_text(
+            "❌ Ошибка при создании MP3."
+        )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -313,8 +393,10 @@ def main():
     app.add_handler(
         CommandHandler("help", help_command)
     )
-
-    # Сообщения
+app.add_handler(
+    CommandHandler("mp3", mp3_command)
+)
+    # Сообщениях
     app.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
