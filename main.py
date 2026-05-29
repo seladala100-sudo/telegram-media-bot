@@ -101,12 +101,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
 
         ydl_opts = {
-            "outtmpl": f"{DOWNLOAD_DIR}/%(title)s.%(ext)s",
-            "format": "best[height<=720]",
-            "noplaylist": True,
-            "restrictfilenames": True,
-            "quiet": True,
-        }
+    "outtmpl": f"{DOWNLOAD_DIR}/%(title)s.%(ext)s",
+    "format": "best[height<=720]",
+    "noplaylist": True,
+    "restrictfilenames": True,
+    "quiet": True,
+    "cookiefile": "cookies.txt",
+}
 
         # ==========================================
         # СКАЧИВАНИЕ ВИДЕО
